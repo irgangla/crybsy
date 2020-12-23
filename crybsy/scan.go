@@ -4,9 +4,19 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/user"
+	"path/filepath"
+	"sync"
 )
+
+type scanner struct {
+	Root      *Root
+	Files     chan File
+	Errors    chan error
+	WaitGroup *sync.WaitGroup
+}
 
 // NewRoot creates a new CryBSy Root
 func NewRoot(path string) (*Root, error) {
@@ -23,8 +33,12 @@ func NewRoot(path string) (*Root, error) {
 		return nil, errors.New("path is not a directory")
 	}
 
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
 	root := new(Root)
-	root.Path = path
+	root.Path = absPath
 	root.Host, err = os.Hostname()
 	if err != nil {
 		root.Host = "unknown"
@@ -48,4 +62,90 @@ func calculateRootID(root *Root) string {
 	hashFunc.Write([]byte(root.User.GID))
 	hashFunc.Write([]byte(root.User.UID))
 	return fmt.Sprintf("%x", hashFunc.Sum(nil))
+}
+
+// Collect all files found by a scan
+func Collect(files chan File, errors chan error, wg *sync.WaitGroup) []File {
+	wg.Wait()
+	close(errors)
+	close(files)
+
+	for e := range errors {
+		log.Println("CryBSy: collect files", e)
+	}
+
+	fs := make([]File, 0)
+	for f := range files {
+		fs = append(fs, f)
+	}
+	return fs
+}
+
+// Scan the root tree for files
+func Scan(root *Root) (chan File, chan error, *sync.WaitGroup) {
+	var wg sync.WaitGroup
+	scan := scanner{
+		Root:      root,
+		Files:     make(chan File, 1000),
+		Errors:    make(chan error, 1000),
+		WaitGroup: &wg,
+	}
+
+	wg.Add(1)
+	go scanRecursive(root.Path, scan)
+
+	return scan.Files, scan.Errors, scan.WaitGroup
+}
+
+func scanRecursive(path string, scan scanner) {
+	defer scan.WaitGroup.Done()
+	callback := func(filePath string, file os.FileInfo, err error) error {
+		if err != nil {
+			scan.Errors <- err
+			return err
+		}
+
+		if !file.IsDir() {
+			scan.WaitGroup.Add(1)
+			go handleFile(filePath, file, scan)
+		}
+
+		return err
+	}
+	err := filepath.Walk(path, callback)
+	if err != nil {
+		scan.Errors <- err
+	}
+}
+
+func handleFile(path string, file os.FileInfo, scan scanner) {
+	defer scan.WaitGroup.Done()
+
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		scan.Errors <- err
+		return
+	}
+	hash, err := Hash(absPath)
+	if err != nil {
+		scan.Errors <- err
+		return
+	}
+
+	relPath, err := filepath.Rel(scan.Root.Path, absPath)
+	if err != nil {
+		scan.Errors <- err
+		return
+	}
+	modified := file.ModTime().Unix()
+	_, name := filepath.Split(path)
+	f := File{
+		Path:     relPath,
+		Name:     name,
+		RootID:   scan.Root.ID,
+		Modified: modified,
+		Hash:     hash,
+		FileID:   hash,
+	}
+	scan.Files <- f
 }

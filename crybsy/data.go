@@ -39,5 +39,5 @@ type File struct {
 	// Hash of last file scan
 	Hash string
 	// Modified date of file data
-	Modified uint64
+	Modified int64
 }
