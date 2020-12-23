@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"sync"
 )
 
@@ -16,6 +17,7 @@ type scanner struct {
 	Files     chan File
 	Errors    chan error
 	WaitGroup *sync.WaitGroup
+	Filter    []*regexp.Regexp
 }
 
 // NewRoot creates a new CryBSy Root
@@ -84,11 +86,26 @@ func Collect(files chan File, errors chan error, wg *sync.WaitGroup) []File {
 // Scan the root tree for files
 func Scan(root *Root) (chan File, chan error, *sync.WaitGroup) {
 	var wg sync.WaitGroup
+	errors := make(chan error, 1000)
+
+	patterns := make([]*regexp.Regexp, 0)
+	if root.Filter != nil {
+		for _, f := range root.Filter {
+			regexp, err := regexp.Compile(f)
+			if err != nil {
+				errors <- err
+			} else {
+				patterns = append(patterns, regexp)
+			}
+		}
+	}
+
 	scan := scanner{
 		Root:      root,
 		Files:     make(chan File, 1000),
-		Errors:    make(chan error, 1000),
+		Errors:    errors,
 		WaitGroup: &wg,
+		Filter:    patterns,
 	}
 
 	wg.Add(1)
@@ -118,8 +135,21 @@ func scanRecursive(path string, scan scanner) {
 	}
 }
 
+func filterFile(path string, scan scanner) bool {
+	for _, exp := range scan.Filter {
+		if exp.Match([]byte(path)) {
+			return true
+		}
+	}
+	return false
+}
+
 func handleFile(path string, file os.FileInfo, scan scanner) {
 	defer scan.WaitGroup.Done()
+
+	if filterFile(path, scan) {
+		return
+	}
 
 	absPath, err := filepath.Abs(path)
 	if err != nil {

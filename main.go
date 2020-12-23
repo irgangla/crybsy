@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/crybsy/crybsy/crybsy"
 )
@@ -15,11 +14,15 @@ func main() {
 		panic(err)
 	}
 
-	log.Println(root)
+	filter := make([]string, 1)
+	filter[0] = "[.]git.*"
+	root.Filter = filter
+
+	fmt.Printf("Root: %v\n\n", root)
 
 	files := crybsy.Collect(crybsy.Scan(root))
 
 	for _, f := range files {
-		fmt.Println(f.Path, f.Name, f.Hash)
+		fmt.Println(f.Hash, f.Path)
 	}
 }

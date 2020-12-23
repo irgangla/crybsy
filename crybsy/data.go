@@ -20,6 +20,8 @@ type Root struct {
 	User Owner
 	// ID is a global unique id for tree replication
 	ID string
+	// Filter regexp patterns for file names
+	Filter []string
 }
 
 // File groups all information about a specific file
