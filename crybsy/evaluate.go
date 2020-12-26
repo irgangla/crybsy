@@ -14,6 +14,15 @@ func ByHash(files []File) map[string][]File {
 	return fileMap
 }
 
+// ByPath groups the files by file path
+func ByPath(files []File) map[string]File {
+	fileMap := make(map[string]File)
+	for _, f := range files {
+		fileMap[f.Path] = f
+	}
+	return fileMap
+}
+
 // Duplicates finds files with same hash
 func Duplicates(byHash map[string][]File) map[string][]File {
 	fileMap := make(map[string][]File)
