@@ -24,6 +24,14 @@ type Root struct {
 	Filter []string
 }
 
+// Version of a file
+type Version struct {
+	// Modified timestamp of file
+	Modified int64
+	// Hash of file version
+	Hash string
+}
+
 // File groups all information about a specific file
 type File struct {
 	// Path relative to root folder
@@ -42,4 +50,6 @@ type File struct {
 	Hash string
 	// Modified date of file data
 	Modified int64
+	// Old file versions
+	Versions []Version
 }
