@@ -56,6 +56,16 @@ func NewRoot(path string) (*Root, error) {
 	return root, nil
 }
 
+// SetDefaultFilter for root
+func SetDefaultFilter(root *Root) {
+	if root.Filter == nil {
+		root.Filter = make([]string, 0)
+	}
+	root.Filter = append(root.Filter, "[.]git.*")
+	root.Filter = append(root.Filter, "[.]DS.*")
+	root.Filter = append(root.Filter, "[.]crybsy.*")
+}
+
 func calculateRootID(root *Root) string {
 	hashFunc := sha256.New()
 	hashFunc.Write([]byte(root.Path))
@@ -178,4 +188,33 @@ func handleFile(path string, file os.FileInfo, scan scanner) {
 		FileID:   hash,
 	}
 	scan.Files <- f
+}
+
+// UpdateFiles merge the old and new scan
+func UpdateFiles(oldFiles []File, newFiles []File) []File {
+	fileMap := ByPath(oldFiles)
+	for _, f := range newFiles {
+		of, ok := fileMap[f.Path]
+		if !ok {
+			fileMap[f.Path] = f
+		} else {
+			if f.Hash == of.Hash && f.Modified == of.Modified {
+				continue
+			}
+			version := Version{
+				Hash:     of.Hash,
+				Modified: of.Modified,
+			}
+			f.Versions = make([]Version, 0)
+			f.Versions = append(of.Versions, version)
+			f.FileID = of.FileID
+		}
+	}
+
+	files := make([]File, 0)
+	for _, f := range fileMap {
+		files = append(files, f)
+	}
+
+	return files
 }
