@@ -13,20 +13,22 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	crybsy.SetDefaultFilter(root)
+	crybsy.SaveRoot(root)
 
-	filter := make([]string, 2)
-	filter[0] = "[.]git.*"
-	filter[1] = "[.]DS.*"
-	root.Filter = filter
+	crybsy.PrintRoot(root)
 
-	fmt.Printf("Root: %v\n\n", root)
+	files, err := crybsy.Update(root)
+	if err != nil {
+		panic(err)
+	}
 
-	files := crybsy.Collect(crybsy.Scan(root))
-
-	fmt.Println("Files:")
+	fmt.Printf("Files (%v):\n", len(files))
 	for _, f := range files {
 		fmt.Println(f.Hash, f.Path)
 	}
+
+	crybsy.SaveFiles(files, root)
 
 	dup := crybsy.Duplicates(crybsy.ByHash(files))
 	fmt.Println("\nDuplicates:")
