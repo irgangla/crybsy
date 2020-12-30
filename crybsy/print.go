@@ -10,7 +10,7 @@ func PrintRoot(root *Root) {
 	fmt.Println("- Path:", root.Path)
 	fmt.Println("- ID:", root.ID)
 	fmt.Println("- Host:", root.Host)
-	fmt.Printf("- User: %v (%v, %v)", root.User.Name, root.User.UID, root.User.GID)
+	fmt.Printf("- User: %v (%v, %v)\n", root.User.Name, root.User.UID, root.User.GID)
 	fmt.Printf("- Filter: ")
 	if root.Filter == nil {
 		fmt.Println("no filter")

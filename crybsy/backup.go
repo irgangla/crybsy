@@ -3,9 +3,7 @@ package crybsy
 import (
 	"archive/tar"
 	"compress/gzip"
-	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -104,24 +102,34 @@ func RestoreFile(file File, root *Root, backupPath string) error {
 	if err != nil {
 		return err
 	}
-	in, err := os.Open(backup)
-	if err != nil {
-		return err
-	}
-
-	targetpath := filepath.Join(root.Path, file.RestorePath())
-	out, err := os.Create(targetpath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	err = readArchive(in, out, file.Hash)
+	target := filepath.Join(root.Path, file.RestorePath())
+	err = extractFromBackup(target, backup, file.Hash)
 	if err != nil {
 		return err
 	}
 
 	return checkAndReplace(file, root)
+}
+
+func extractFromBackup(target string, backup string, name string) error {
+	in, err := os.Open(backup)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	err = readArchive(in, out, name)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func checkAndReplace(file File, root *Root) error {
@@ -271,6 +279,63 @@ func VerifyBackup(root *Root, target string) ([]File, []string, error) {
 		return nil, nil, err
 	}
 
+	missingBackups := checkBackupFiles(currentFiles, targetDir)
+	brokenBackups, err := validateBackups(targetDir)
+	if err != nil {
+		return missingBackups, nil, err
+	}
+
+	return missingBackups, brokenBackups, nil
+}
+
+func validateBackups(targetDir string) ([]string, error) {
+	backups, err := ioutil.ReadDir(targetDir)
+	if err != nil {
+		return nil, err
+	}
+
+	backupQueue := make(chan string, 10)
+	brokenQueue := make(chan []string, 1)
+	var verifyGroup sync.WaitGroup
+
+	brokenQueue <- make([]string, 0)
+
+	for i := 0; i < 8; i++ {
+		verifyGroup.Add(1)
+		go validateBackup(backupQueue, brokenQueue, &verifyGroup)
+	}
+
+	for _, b := range backups {
+		if !b.IsDir() {
+			path := filepath.Join(targetDir, b.Name())
+			backupQueue <- path
+		}
+	}
+
+	verifyGroup.Wait()
+
+	return <-brokenQueue, nil
+}
+
+func validateBackup(backups chan string, broken chan []string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for path := range backups {
+		name := filepath.Base(path)
+		hash, err := nameToHash(name)
+		if err != nil {
+			log.Println("invalid backup", path)
+			continue
+		}
+		if !isBackupValid(path, hash) {
+			var brokenBackups = <-broken
+			brokenBackups = append(brokenBackups, path)
+			broken <- brokenBackups
+		}
+	}
+}
+
+func checkBackupFiles(currentFiles []File, targetDir string) []File {
 	missingBackups := make([]File, 0)
 	hashMap := ByHash(currentFiles)
 	for _, fs := range hashMap {
@@ -280,27 +345,7 @@ func VerifyBackup(root *Root, target string) ([]File, []string, error) {
 			missingBackups = append(missingBackups, fs...)
 		}
 	}
-
-	brokenBackups := make([]string, 0)
-	backups, err := ioutil.ReadDir(targetDir)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, b := range backups {
-		if !b.IsDir() {
-			path := filepath.Join(targetDir, b.Name())
-			hash, err := nameToHash(b.Name())
-			if err != nil {
-				log.Println("invalid backup", path)
-				continue
-			}
-			if !isBackupValid(path, hash) {
-				brokenBackups = append(brokenBackups, hash)
-			}
-		}
-	}
-
-	return missingBackups, brokenBackups, nil
+	return missingBackups
 }
 
 func nameToHash(name string) (string, error) {
@@ -309,39 +354,44 @@ func nameToHash(name string) (string, error) {
 	ln := len(name)
 	l := ln - le
 
-	if ln < le || name[l+1:] != ending {
-		return "", errors.New("invalid file name")
+	if ln < le {
+		return "", errors.New("invalid file")
+	}
+	if name[l:] != ending {
+		return "", errors.New("invalid file")
 	}
 
-	bytes, err := hex.DecodeString(name[:l])
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("%x", bytes), nil
-
+	return name[:l], nil
 }
 
 func isBackupValid(path string, hash string) bool {
-	in, err := os.Open(path)
-	if err != nil {
-		return false
-	}
-	out, err := ioutil.TempFile("", "crybsy_verify")
+	tmpDir, err := filepath.Abs(".")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer out.Close()
-	err = readArchive(in, out, hash)
+	out, err := ioutil.TempFile(tmpDir, "crybsy_verify")
 	if err != nil {
+		log.Fatal(err)
+	}
+	tempPath := out.Name()
+	defer os.Remove(tempPath)
+
+	err = extractFromBackup(tempPath, path, hash)
+	if err != nil {
+		log.Println("extract error", path, err)
 		return false
 	}
-	h, err := Hash(filepath.Join(os.TempDir(), out.Name()))
+	out.Close()
+
+	h, err := Hash(tempPath)
 	if err != nil {
+		log.Println("calc backup hash", hash, path, err)
 		return false
 	}
-	if h == hash {
-		return true
+	if h != hash {
+		log.Println("calc backup hash", hash, path, tempPath, errors.New("wrong backup hash"))
+		return false
 	}
-	return false
+
+	return true
 }

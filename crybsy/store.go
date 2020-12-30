@@ -117,7 +117,6 @@ func loadFilesFrom(name string, root *Root) ([]File, error) {
 
 	path := filepath.Join(dir, name)
 	return loadFilesAt(path)
-
 }
 
 func loadFilesAt(path string) ([]File, error) {

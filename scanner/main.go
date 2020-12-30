@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/crybsy/crybsy/crybsy"
@@ -20,13 +21,19 @@ func main() {
 	fmt.Println("Path:", path)
 	fmt.Println("-----")
 
-	root, err := crybsy.NewRoot(path)
+	root, err := crybsy.LoadRoot(path)
 	if err != nil {
-		panic(err)
+		log.Println("load root", err)
 	}
-	crybsy.SetDefaultFilter(root)
-	crybsy.SaveRoot(root)
-
+	if root == nil {
+		fmt.Println("No root found! Init new CryBSy root for", path, "\n-----")
+		root, err = crybsy.NewRoot(path)
+		if err != nil {
+			panic(err)
+		}
+		crybsy.SetDefaultFilter(root)
+		crybsy.SaveRoot(root)
+	}
 	crybsy.PrintRoot(root)
 
 	files, err := crybsy.Update(root)

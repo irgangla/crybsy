@@ -26,13 +26,10 @@ func main() {
 	fmt.Println("Target:", target)
 	fmt.Println("-----")
 
-	root, err := crybsy.NewRoot(path)
+	root, err := crybsy.LoadRoot(path)
 	if err != nil {
 		panic(err)
 	}
-	crybsy.SetDefaultFilter(root)
-	crybsy.SaveRoot(root)
-
 	crybsy.PrintRoot(root)
 
 	missing, broken, err := crybsy.VerifyBackup(root, target)

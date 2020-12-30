@@ -39,13 +39,10 @@ func main() {
 	fmt.Println("Out:", out)
 	fmt.Println("-----")
 
-	root, err := crybsy.NewRoot(path)
+	root, err := crybsy.LoadRoot(path)
 	if err != nil {
 		panic(err)
 	}
-	crybsy.SetDefaultFilter(root)
-	crybsy.SaveRoot(root)
-
 	crybsy.PrintRoot(root)
 
 	files, err := crybsy.LoadFiles(root)
