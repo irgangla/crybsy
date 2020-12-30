@@ -311,6 +311,7 @@ func validateBackups(targetDir string) ([]string, error) {
 			backupQueue <- path
 		}
 	}
+	close(backupQueue)
 
 	verifyGroup.Wait()
 
