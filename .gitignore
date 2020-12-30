@@ -132,3 +132,6 @@ duplicates/duplicates
 scanner/scanner
 verify/verify
 backup/backup
+reduce/reduce
+
+*/duplicates.json
