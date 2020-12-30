@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"log"
 	"os"
 )
 
@@ -29,5 +30,6 @@ func Hash(path string) (string, error) {
 	}
 
 	hashVal := fmt.Sprintf("%x", hashFunc.Sum(nil))
+	log.Println(hashVal, path)
 	return hashVal, nil
 }

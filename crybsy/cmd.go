@@ -34,12 +34,12 @@ func Load(path string) (*Root, error) {
 
 // Update file data for root
 func Update(root *Root) ([]File, error) {
-	files, err := LoadFiles(root)
+	oldFiles, err := LoadFiles(root)
 	if err != nil {
 		log.Println("no CryBSy file data found", err)
-		return Collect(Scan(root)), nil
+		oldFiles = make([]File, 0)
 	}
 
-	currentFiles := Collect(Scan(root))
-	return UpdateFiles(files, currentFiles), nil
+	files, errors, wg := Scan(root)
+	return UpdateFiles(oldFiles, files, errors, wg), nil
 }
