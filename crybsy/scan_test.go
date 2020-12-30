@@ -36,6 +36,7 @@ func Test_Scan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	SetDefaultFilter(root)
 
 	files, errors, wg := Scan(root)
 

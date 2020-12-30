@@ -77,26 +77,30 @@ func SaveFiles(files []File, root *Root) error {
 	return saveFilesAs("files.json", files, root)
 }
 
-func saveFilesAs(name string, files []File, root *Root) error {
+func saveFilesAt(path string, files []File) error {
 	data, err := json.Marshal(files)
 	if err != nil {
 		log.Println("marshal files failed", err)
 		return err
 	}
 
-	dir, err := createCrybsyDir(root)
-	if err != nil {
-		log.Println("crybsy folder failed", err)
-		return err
-	}
-
-	err = ioutil.WriteFile(filepath.Join(dir, name), data, 0775)
+	err = ioutil.WriteFile(path, data, 0775)
 	if err != nil {
 		log.Println("crybsy files save failed", err)
 		return err
 	}
 
 	return nil
+}
+
+func saveFilesAs(name string, files []File, root *Root) error {
+	dir, err := createCrybsyDir(root)
+	if err != nil {
+		log.Println("crybsy folder failed", err)
+		return err
+	}
+
+	return saveFilesAt(filepath.Join(dir, name), files)
 }
 
 // LoadFiles saves the file information
@@ -111,9 +115,15 @@ func loadFilesFrom(name string, root *Root) ([]File, error) {
 		return nil, err
 	}
 
-	data, err := ioutil.ReadFile(filepath.Join(dir, name))
+	path := filepath.Join(dir, name)
+	return loadFilesAt(path)
+
+}
+
+func loadFilesAt(path string) ([]File, error) {
+	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Println("crybsy load root failed", err)
+		log.Println("crybsy load files failed", err)
 		return nil, err
 	}
 

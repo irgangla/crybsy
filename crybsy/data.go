@@ -53,3 +53,13 @@ type File struct {
 	// Old file versions
 	Versions []Version
 }
+
+// BackupName of this file
+func (f *File) BackupName() string {
+	return f.Hash + ".tar.gz"
+}
+
+// RestorePath of this file
+func (f *File) RestorePath() string {
+	return f.Path + ".restore"
+}

@@ -41,5 +41,5 @@ func Update(root *Root) ([]File, error) {
 	}
 
 	files, errors, wg := Scan(root)
-	return UpdateFiles(oldFiles, files, errors, wg), nil
+	return UpdateFiles(oldFiles, root, files, errors, wg), nil
 }

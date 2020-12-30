@@ -167,7 +167,7 @@ func handleFile(path string, file os.FileInfo, scan scanner) {
 }
 
 // UpdateFiles merge the old and new scan
-func UpdateFiles(oldFiles []File, files chan File, errors chan error, wg *sync.WaitGroup) []File {
+func UpdateFiles(oldFiles []File, root *Root, files chan File, errors chan error, wg *sync.WaitGroup) []File {
 	log.Println("Update file list...")
 
 	start := time.Now().UnixNano()
@@ -183,7 +183,7 @@ func UpdateFiles(oldFiles []File, files chan File, errors chan error, wg *sync.W
 	go logErrors(errors, &wg2)
 	for i := 0; i < 8; i++ {
 		wg2.Add(1)
-		go updateFile(files, fileMap, updatedFiles, &wg2)
+		go updateFile(files, root, fileMap, updatedFiles, &wg2)
 	}
 
 	fileList := make(chan []File, 1)
@@ -221,7 +221,7 @@ func logErrors(errors chan error, wg *sync.WaitGroup) {
 	}
 }
 
-func updateFile(files chan File, fileMap map[string]File, updateFiles chan File, wg *sync.WaitGroup) {
+func updateFile(files chan File, root *Root, fileMap map[string]File, updateFiles chan File, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for f := range files {
 		start := time.Now().UnixNano()
@@ -241,7 +241,7 @@ func updateFile(files chan File, fileMap map[string]File, updateFiles chan File,
 			if of.Modified == f.Modified {
 				updateFiles <- of
 			} else {
-				hash, err := Hash(f.Path)
+				hash, err := Hash(filepath.Join(root.Path, f.Path))
 				if err != nil {
 					log.Println("file hash error", err)
 					updateFiles <- of
