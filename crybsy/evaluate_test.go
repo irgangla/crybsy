@@ -8,7 +8,10 @@ func Test_ByHash(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	files := Collect(Scan(root))
+	files, err := Update(root)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	fileMap := ByHash(files)
 
@@ -27,7 +30,10 @@ func Test_Duplicate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	files := Collect(Scan(root))
+	files, err := Update(root)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	fileMap := Duplicates(ByHash(files))
 
